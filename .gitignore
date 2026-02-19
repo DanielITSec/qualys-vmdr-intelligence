@@ -1,0 +1,11 @@
+# PowerShell temporaries
+*.log
+*.pno
+*.xml
+!manifest.xml
+
+# Credentials and sensitive data (Security Best Practice)
+*.ps1xml
+*secret*
+*config.json
+.env
