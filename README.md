@@ -1,4 +1,4 @@
-# Qualys VMDR Intelligence & RBVM Framework (WIP)
+# Qualys VMDR Intelligence & RBVM Framework - :construction:WIP:construction:
 
 ## 🎯 Strategic Vulnerability Management
 This repository serves as a professional portfolio demonstrating advanced implementation and automation strategies for **Qualys VMDR**. Instead of focusing on raw data, this framework emphasizes **Risk-Based Vulnerability Management (RBVM)** to bridge the gap between technical findings and business risk mitigation.
