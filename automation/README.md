@@ -10,7 +10,7 @@ In a hybrid infrastructure, speed of remediation is just as important as the acc
 * **Governance at Scale:** Maintaining compliance across Entra ID and On-premise ecosystems.
 
 
-## 🚀 Featured Scripts
+## 🗃️ Featured Scripts
 
 ### 1. Qualys Asset Tagging Automation
 **Purpose:** Automatically assigns Qualys Asset Tags based on registry keys, hostnames, or Entra ID attributes.
@@ -25,7 +25,6 @@ In a hybrid infrastructure, speed of remediation is just as important as the acc
 **Purpose:** Extracts high-priority findings (QDS > 80) and formats them for stakeholders.
 * **Function:** Bridges the gap between SecOps and IT Ops by providing actionable, filtered data instead of raw, massive spreadsheets.
 
----
 
 ## 🛠️ Usage & Setup
 
@@ -33,11 +32,13 @@ In a hybrid infrastructure, speed of remediation is just as important as the acc
 * **PowerShell 7.x** recommended.
 * **Modules:** `Microsoft.Graph`, `PowershellGet`.
 * **API Access:** Valid Qualys API credentials and Microsoft Graph Scopes (`Group.ReadWrite.All`, etc.).
+<br><br>
 
 ### Security Best Practices
 > [!IMPORTANT]
 > **Credential Management:** These scripts are designed to work with environment variables or secure credential objects (e.g., `Export-CliXml` or Azure Key Vault). **Never hardcode API keys or passwords in the source code.**
 
+<br><br>
 ---
 
 > [!NOTE]  
