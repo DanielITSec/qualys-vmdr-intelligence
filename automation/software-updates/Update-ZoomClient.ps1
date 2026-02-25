@@ -23,7 +23,7 @@
     - Requires Administrative privileges.
 
 .EXAMPLE
-    .\Update-Zoom.ps1
+    .\Update-ZoomClient.ps1
 #>
 
 # ---------------------------------------------------------------------------
