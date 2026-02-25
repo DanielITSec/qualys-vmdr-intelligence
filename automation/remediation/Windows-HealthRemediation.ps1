@@ -54,12 +54,17 @@
     https://github.com/DanielITSec
 
 .VERSION
-    0.9.5
+    1.0.0
 
 .LASTEDIT
     2026-02-25
 
 .NOTES
+    ACKNOWLEDGMENTS:
+    - Michal Gajda: Creator of the PSWindowsUpdate module used in this script.
+    - Anders Rødland: Thanks for the original script logic and community contributions.
+      Blog: https://www.andersrodland.com | X: @AndersRodland
+
     DISCLAIMER:
     This script is provided "as is". Repairs to WMI or Windows Update folders 
     can be intensive. Always test in a staging environment before production use.
@@ -210,7 +215,11 @@ Begin {
         foreach ($svc in $Services) { Stop-ServiceSafely -ServiceName $svc }
 
         # Safe Cleanup (Renaming instead of direct deletion reduces lock risks)
-        $Folders = @("C:\Windows\SoftwareDistribution", "C:\Windows\System32\catroot2")
+        $Folders = @(
+            (Join-Path $env:SystemRoot "SoftwareDistribution"), 
+            (Join-Path $env:SystemRoot "System32\catroot2")
+        )
+
         foreach ($Folder in $Folders) {
             if (Test-Path $Folder) {
                 Write-Log "Cleaning folder: $Folder"
@@ -259,7 +268,7 @@ Begin {
         Write-Log "Starting WMI Repair..."
         Stop-ServiceSafely -ServiceName "winmgmt"
         
-        $WbemPath = "$env:SystemRoot\System32\wbem"
+        $WbemPath = Join-Path $env:SystemRoot "System32\wbem"
         
         # Reset and Salvage Repository
         Start-Process "$WbemPath\winmgmt.exe" -ArgumentList "/resetrepository" -Wait -NoNewWindow
