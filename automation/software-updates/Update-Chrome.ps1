@@ -13,7 +13,7 @@
     https://github.com/DanielITSec
 
 .VERSION
-    2.6.1
+    2.6.2
 
 .LASTEDIT
     2026-02-25
@@ -180,11 +180,16 @@ Write-Log "Action required: UpdateNeeded=$UpdateRequired, CleanupNeeded=$Cleanup
 if ($UpdateRequired) {
     if (!(Test-Path $TempDir)) { New-Item -ItemType Directory -Path $TempDir | Out-Null }
     
-    # Check if a daily copy exists, otherwise download
-    if (Test-Path $OutputFile -and (Get-Item $OutputFile).LastWriteTime.Date -eq (Get-Date).Date) {
-        Write-Log "Recent installer already exists in $TempDir."
-    } else {
-        # PS 5.1 compatible null-coalescing logic
+    $NeedsDownload = $true
+    # Safer nested check for PS 5.1 compatibility
+    if (Test-Path $OutputFile) {
+        if ((Get-Item $OutputFile).LastWriteTime.Date -eq (Get-Date).Date) {
+            Write-Log "Recent installer already exists in $TempDir. Skipping download."
+            $NeedsDownload = $false
+        }
+    }
+
+    if ($NeedsDownload) {
         $DownloadVersion = if ($null -ne $LatestVersion) { $LatestVersion } else { 'Latest' }
         Write-Log "Downloading Chrome Enterprise MSI (v$DownloadVersion)..."
         Invoke-WebRequest -Uri $ChromeMsiUrl -OutFile $OutputFile
