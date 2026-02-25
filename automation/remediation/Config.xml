@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Configuration>
+	<!-- Logging Configuration -->
+	<!-- Share: Replace with your central logging server path. Level: Full = Log everything. -->
+	<Log Name="File" Share="\YOUR-FILE-SERVER\LogShare" Level="Full" MaxLogHistory="8" LocalLogFile="True" Enable="True" />
+	<Log Name="Time" Format="ClientLocal" /> <!-- Valid formats: ClientLocal / UTC -->
+
+	<!-- Remediation Options -->
+	<Option Name="BITSCheck" Fix="True" Enable="True" />
+	<Option Name="ClientSettingsCheck" Fix="True" Enable="True" />
+	<Option Name="DNSCheck" Fix="False" Enable="True" />
+	<Option Name="Drivers" Enable="True" />
+
+	<!-- Updates: Replace Share with your internal WSUS hostname or IP if applicable -->
+	<Option Name="Updates" Share="YOUR-WSUS-HOSTNAME" Fix="False" Enable="False" />
+
+	<Option Name="PendingReboot" StartRebootApplication="False" Enable="True" />
+	<Option Name="MaxRebootDays" Days="7" Enable="True" />
+	<Option Name="OSDiskFreeSpace">10</Option>
+	<Option Name="WMI" Fix="True" Enable="True"/>
+
+	<!-- Critical Services to Monitor -->
+	<!-- Ensures essential system services are in the correct state and startup type -->
+	<Service Name="BITS" StartupType="Automatic (Delayed Start)" State="Running" Uptime=""/>
+	<Service Name="winmgmt" StartupType="Automatic" State="Running" Uptime=""/>
+	<Service Name="wuauserv" StartupType="Automatic (Delayed Start)" State="Running" Uptime=""/>
+	<Service Name="lanmanserver" StartupType="Automatic" State="Running" Uptime=""/>
+	<Service Name="RpcSs" StartupType="Automatic" State="Running" Uptime=""/>
+	<Service Name="W32Time" StartupType="Automatic" State="Running" Uptime=""/>
+
+	<!-- Specialized Remediations -->
+	<Remediation Name="AdminShare" Fix="True" />
+
+
+</Configuration>
