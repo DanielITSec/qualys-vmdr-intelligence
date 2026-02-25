@@ -1,0 +1,170 @@
+<#
+.SYNOPSIS
+    Standardizes Zoom to the Enterprise (MSI) version and removes user-level installs.
+
+.DESCRIPTION
+    Identifies and removes existing Zoom installations (both System-wide and Per-user).
+    Utilizes the official Zoom CleanZoom utility for thorough cleanup before 
+    installing the latest 64-bit Enterprise MSI.
+
+.AUTHOR
+    Daniel Lima
+    https://github.com/DanielITSec
+
+.VERSION
+    2.0.0
+
+.LASTEDIT
+    2026-02-25
+
+.NOTES
+    - Credits: Michal Gajda (PSWindowsUpdate inspiration), Anders Rødland (Original logic inspiration).
+    - Uses the official Zoom CleanZoom tool for deep cleanup.
+    - Requires Administrative privileges.
+
+.EXAMPLE
+    .\Update-Zoom.ps1
+#>
+
+# ---------------------------------------------------------------------------
+# Configuration & Global Variables
+# ---------------------------------------------------------------------------
+$ErrorActionPreference = "Stop"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls13 -bor [Net.SecurityProtocolType]::Tls12
+
+$ZoomMsiUrl   = "https://zoom.us/client/latest/ZoomInstallerFull.msi?archType=x64"
+$CleanZoomUrl = "https://assets.zoom.us/docs/msi-templates/CleanZoom.zip"
+$TempDir      = Join-Path $env:WinDir "Temp"
+$MsiPath      = Join-Path $TempDir "ZoomInstaller.msi"
+$ZipPath      = Join-Path $TempDir "CleanZoom.zip"
+$Uninstaller  = Join-Path $TempDir "CleanZoom.exe"
+
+$UserProfiles = Get-ChildItem -Path "$($env:SystemDrive)\Users" | Where-Object { $_.PSIsContainer -and $_.Name -ne "Public" }
+
+# ---------------------------------------------------------------------------
+# Helper Functions
+# ---------------------------------------------------------------------------
+
+function Write-Log {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)][string]$Message,
+        [ValidateSet("Info", "Warning", "Error")][string]$Level = "Info"
+    )
+    $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $Color = switch($Level) {
+        "Warning" { "Yellow" }
+        "Error"   { "Red" }
+        Default   { "White" }
+    }
+    Write-Host "[$Timestamp] [$Level] $Message" -ForegroundColor $Color
+}
+
+function Get-ZoomVersion {
+    # Avoids the slow and problematic Win32_Product class
+    $Keys = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+    )
+    $ZoomEntry = Get-ItemProperty $Keys -ErrorAction SilentlyContinue | 
+                 Where-Object { $_.DisplayName -like "*Zoom*" } | 
+                 Select-Object -First 1
+
+    if ($ZoomEntry) {
+        return [version]($ZoomEntry.DisplayVersion -split ' ')[0]
+    }
+    return $null
+}
+
+function Invoke-ZoomCleanup {
+    Write-Log "Starting Zoom cleanup process..."
+    
+    # 1. Official CleanZoom Tool
+    Write-Log "Downloading and running Zoom CleanZoom utility..."
+    try {
+        Invoke-WebRequest -Uri $CleanZoomUrl -OutFile $ZipPath
+        Expand-Archive -Path $ZipPath -DestinationPath $TempDir -Force
+        Start-Process -FilePath $Uninstaller -ArgumentList "/silent /keep_outlook_plugin" -Wait
+    } catch {
+        Write-Log "Failed to execute official CleanZoom: $($_.Exception.Message)" "Warning"
+    }
+
+    # 2. Per-User profile cleanup
+    Write-Log "Scanning user profiles for residual data..."
+    foreach ($Profile in $UserProfiles) {
+        $UserPath = Join-Path $Profile.FullName "AppData\Roaming\Zoom"
+        if (Test-Path $UserPath) {
+            Write-Log "Removing user-level install for profile: $($Profile.Name)" "Warning"
+            # Take ownership and reset permissions before deletion
+            $null = cmd /c "takeown /F `"$UserPath`" /R /D Y > nul 2>&1"
+            $null = cmd /c "icacls `"$UserPath`" /grant:r $env:USERNAME:(F) /T > nul 2>&1"
+            Remove-Item -Path $UserPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Main Script Logic
+# ---------------------------------------------------------------------------
+
+# 1. Version Discovery
+Write-Log "Scanning for existing Zoom installations..."
+$InstalledVersion = Get-ZoomVersion
+
+# Fetch latest version from third-party tracker (DeepFreeze) as Zoom lacks a public simple-text API
+try {
+    $Req = Invoke-WebRequest -Uri "https://www.deepfreeze.com/Cloud/pr/softwareupdater/Latest" -UseBasicParsing
+    if ($Req.Content -match "Zoom updated to (\d+\.\d+\.\d+)") {
+        $LatestVersion = [version]$Matches[1]
+    }
+} catch {
+    Write-Log "Could not verify latest version online. Proceeding with installation." "Warning"
+    $LatestVersion = [version]"0.0.0.0"
+}
+
+if ($InstalledVersion) {
+    Write-Log "Installed version: $InstalledVersion"
+    Write-Log "Latest available version: $LatestVersion"
+
+    if ($InstalledVersion -ge $LatestVersion -and $LatestVersion -ne [version]"0.0.0.0") {
+        Write-Log "Zoom is already up to date. Exiting."
+        exit 0
+    }
+} else {
+    Write-Log "Zoom is not currently installed as a system-wide application."
+}
+
+# 2. Preparation
+if (!(Test-Path $TempDir)) { New-Item -ItemType Directory -Path $TempDir | Out-Null }
+
+# 3. Cleanup & Uninstall
+Invoke-ZoomCleanup
+
+# 4. Installation
+Write-Log "Downloading latest Zoom Enterprise MSI..."
+try {
+    Invoke-WebRequest -Uri $ZoomMsiUrl -OutFile $MsiPath
+    Write-Log "Installing Zoom system-wide..."
+    $MsiArgs = "/i `"$MsiPath`" /qn /norestart"
+    $Process = Start-Process "msiexec.exe" -ArgumentList $MsiArgs -Wait -PassThru
+    
+    if ($Process.ExitCode -ne 0) {
+        Write-Log "Installation failed with MSI exit code: $($Process.ExitCode)" "Error"
+        exit 1
+    }
+} catch {
+    Write-Log "Critical error during installation: $($_.Exception.Message)" "Error"
+    exit 1
+}
+
+# 5. Final Verification
+$FinalVersion = Get-ZoomVersion
+if ($FinalVersion) {
+    Write-Log "Success: Zoom version $FinalVersion is now installed."
+} else {
+    Write-Log "Verification failed: Zoom could not be found after installation." "Error"
+}
+
+# Final Cleanup of temp files
+Remove-Item $MsiPath, $ZipPath, $Uninstaller -ErrorAction SilentlyContinue
+Write-Log "Script completed."
